@@ -1,0 +1,346 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// Auth.js required models
+// ─────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// Core application models
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  emailVerified DateTime?
+  passwordHash String? // null when the user only signs in via OAuth
+  image        String?
+
+  currency String @default("INR")
+  timezone String @default("Asia/Kolkata")
+
+  reminderEnabled     Boolean   @default(true)
+  reminderTime        String    @default("20:00") // "HH:mm", interpreted in the user's timezone
+  lastReminderSentAt  DateTime? // last calendar day (in the user's timezone) a reminder was sent/shown
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  workspaceMemberships WorkspaceMember[]
+  createdTransactions  Transaction[]      @relation("TransactionCreatedBy")
+  createdCategories    Category[]         @relation("CategoryCreatedBy")
+  sentInvitations      Invitation[]       @relation("InvitationInvitedBy")
+  passwordResetTokens  PasswordResetToken[]
+  aiApiKeys            AiApiKey[]
+  aiConversations      AiConversation[]
+}
+
+model Workspace {
+  id          String @id @default(cuid())
+  name        String
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members         WorkspaceMember[]
+  transactions    Transaction[]
+  categories      Category[]
+  budgets         Budget[]
+  invitations     Invitation[]
+  aiConversations AiConversation[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  permissions String[] // e.g. ["dashboard.view", "transaction.create"]
+  isCreator   Boolean  @default(false)
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+enum CategoryType {
+  EXPENSE
+  INCOME
+  SAVINGS
+}
+
+model Category {
+  id          String       @id @default(cuid())
+  workspaceId String
+  parentId    String?
+  name        String
+  type        CategoryType
+  icon        String
+  color       String
+  isDefault   Boolean      @default(false)
+  isArchived  Boolean      @default(false)
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("CategoryCreatedBy", fields: [createdById], references: [id])
+  parent       Category?     @relation("CategoryParent", fields: [parentId], references: [id], onDelete: Cascade)
+  subcategories Category[]   @relation("CategoryParent")
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@index([workspaceId, type])
+  @@index([parentId])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  SAVINGS
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  workspaceId String
+  createdById String
+  categoryId  String
+  amount      Decimal         @db.Decimal(12, 2)
+  type        TransactionType
+  description String?
+  date        DateTime
+  paymentMethod PaymentMethod @default(OTHER)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("TransactionCreatedBy", fields: [createdById], references: [id])
+  category  Category  @relation(fields: [categoryId], references: [id])
+
+  @@index([workspaceId, date])
+  @@index([workspaceId, categoryId])
+  @@index([workspaceId, type])
+}
+
+model Budget {
+  id          String  @id @default(cuid())
+  workspaceId String
+  categoryId  String
+  amount      Decimal @db.Decimal(12, 2)
+  month       Int // 1-12
+  year        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id])
+
+  @@unique([workspaceId, categoryId, month, year])
+  @@index([workspaceId, month, year])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  workspaceId String
+  email       String
+  permissions String[]
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  token       String           @unique
+  expiresAt   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
+
+  @@index([workspaceId])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// AI chat assistant
+// ─────────────────────────────────────────────
+
+enum AiProviderName {
+  GEMINI
+  GROK
+}
+
+// One row per user per provider. Keys are user-supplied and per-USER (not
+// per-workspace) — the person who owns the key uses it across every
+// workspace they belong to. Encrypted at rest, see src/lib/crypto/encryption.ts.
+model AiApiKey {
+  id                  String          @id @default(cuid())
+  userId              String
+  provider            AiProviderName
+  encryptedKey        String          @db.Text
+  label               String?
+  lastUsedAt          DateTime?
+  lastValidatedAt     DateTime?
+  lastValidationError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// One active conversation thread per (workspace, user) — get-or-created,
+// not a conversation-list UI. Supports multiple rows per user/workspace
+// already, if a future "New chat" affordance is wanted.
+model AiConversation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+  actions   AiConfirmedAction[]
+
+  @@index([workspaceId, userId])
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+}
+
+model AiMessage {
+  id             String          @id @default(cuid())
+  conversationId String
+  role           AiMessageRole
+  content        String          @db.Text
+  proposedAction Json? // non-null only on an ASSISTANT message that proposed a write action
+  providerUsed   AiProviderName? // which provider generated this assistant turn
+
+  createdAt DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// Audit trail of every WRITE action the AI actually executed (post-confirm
+// only — proposals that were never confirmed live solely in AiMessage.proposedAction).
+model AiConfirmedAction {
+  id             String   @id @default(cuid())
+  conversationId String
+  workspaceId    String
+  userId         String
+  toolName       String
+  arguments      Json
+  resultSummary  String   @db.Text
+  targetType     String?
+  targetId       String?
+
+  createdAt DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([userId])
+}
+
+// Fixed-window rate-limit counter for the AI chat endpoint.
+model AiRateLimitWindow {
+  id          String   @id @default(cuid())
+  userId      String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@unique([userId, windowStart])
+  @@index([userId])
+}
