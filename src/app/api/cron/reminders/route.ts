@@ -3,9 +3,16 @@ import { getUsersWithDueReminders, markReminderSent } from "@/server/services/re
 import { sendReminderEmail } from "@/lib/email/send-reminder";
 
 /**
- * Runs hourly (see vercel.json). Each user carries their own reminderTime
- * and timezone, so this single hourly sweep is what actually delivers a
- * reminder "at the time they chose" without one cron entry per user.
+ * Runs once/day at 20:00 UTC (see vercel.json) — Vercel's Hobby plan
+ * caps cron jobs at once/day, so this can't sweep hourly the way it
+ * ideally would to hit everyone's exact reminderTime. isReminderDue()
+ * still only fires once per user per local day and never double-sends,
+ * so this is safe to run at this cadence — a user whose reminderTime
+ * falls after 20:00 UTC in their own timezone just gets caught on the
+ * *next* day's sweep instead of the same day. The in-app toast (see
+ * checkAndMarkInAppReminder) is unaffected — it's evaluated live on
+ * dashboard load, not by this cron, so it's still accurate to the minute.
+ * Upgrading to Vercel Pro would allow reverting this to hourly.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
