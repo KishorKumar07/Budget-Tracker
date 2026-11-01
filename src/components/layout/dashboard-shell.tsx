@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AppSidebar } from "./app-sidebar";
 import { MobileNav } from "./mobile-nav";
@@ -10,6 +11,7 @@ import { ChatWidget } from "@/components/ai/chat-widget";
 import type { SelectableCategory } from "@/components/categories/category-selector";
 import { checkInAppReminderAction } from "@/app/(dashboard)/reminder-actions";
 import { PERMISSIONS } from "@/lib/permissions/constants";
+import { defaultEntryDate } from "@/lib/utils/entry-date";
 
 type WorkspaceOption = { id: string; name: string };
 
@@ -44,6 +46,8 @@ export function DashboardShell({
 }) {
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const defaultDate = defaultEntryDate(searchParams.get("month"), searchParams.get("year"));
 
   useEffect(() => {
     checkInAppReminderAction().then((due) => {
@@ -78,6 +82,7 @@ export function DashboardShell({
 
       <AddTransactionSheet
         workspaceId={activeWorkspaceId}
+        defaultDate={defaultDate}
         open={addSheetOpen}
         onOpenChange={setAddSheetOpen}
         expenseCategories={expenseCategories}
@@ -89,7 +94,9 @@ export function DashboardShell({
       />
 
       <BulkAddDialog
+        key={defaultDate}
         workspaceId={activeWorkspaceId}
+        defaultDate={defaultDate}
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
         savingsCategories={savingsCategories}

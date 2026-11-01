@@ -30,12 +30,6 @@ const PAYMENT_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
   OTHER: "Other",
 };
 
-function todayLocalISODate() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
-}
-
 const TYPE_LABELS: Record<"EXPENSE" | "INCOME" | "SAVINGS", string> = {
   EXPENSE: "Expense",
   INCOME: "Income",
@@ -44,6 +38,7 @@ const TYPE_LABELS: Record<"EXPENSE" | "INCOME" | "SAVINGS", string> = {
 
 export function AddTransactionSheet({
   workspaceId,
+  defaultDate,
   open,
   onOpenChange,
   expenseCategories,
@@ -54,6 +49,8 @@ export function AddTransactionSheet({
   frequentlyUsedSavings,
 }: {
   workspaceId: string;
+  /** ISO date the Date field starts on — follows the month being viewed. */
+  defaultDate: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expenseCategories: SelectableCategory[];
@@ -149,7 +146,7 @@ export function AddTransactionSheet({
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="date">Date</Label>
-            <DatePicker key={formKey} id="date" name="date" defaultValue={todayLocalISODate()} required />
+            <DatePicker key={`${formKey}-${defaultDate}`} id="date" name="date" defaultValue={defaultDate} required />
           </div>
 
           <button

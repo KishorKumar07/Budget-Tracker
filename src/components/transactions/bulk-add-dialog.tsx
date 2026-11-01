@@ -17,6 +17,7 @@ import {
 import { createTransactionsBulkAction } from "@/app/(dashboard)/transactions/actions";
 import { PAYMENT_METHODS } from "@/lib/validations/transaction";
 import type { SelectableCategory } from "@/components/categories/category-selector";
+import { defaultEntryDate } from "@/lib/utils/entry-date";
 
 type DraftRow = {
   key: string;
@@ -28,26 +29,21 @@ type DraftRow = {
   paymentMethod: (typeof PAYMENT_METHODS)[number];
 };
 
-function todayLocalISODate() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
-}
-
-function emptyRow(): DraftRow {
+function emptyRow(date: string): DraftRow {
   return {
     key: crypto.randomUUID(),
     type: "EXPENSE",
     amount: "",
     categoryId: "",
     description: "",
-    date: todayLocalISODate(),
+    date,
     paymentMethod: "OTHER",
   };
 }
 
 export function BulkAddDialog({
   workspaceId,
+  defaultDate = defaultEntryDate(),
   expenseCategories,
   incomeCategories,
   savingsCategories,
@@ -56,6 +52,8 @@ export function BulkAddDialog({
   showTrigger = true,
 }: {
   workspaceId: string;
+  /** ISO date new rows start on. Defaults to today (in the browser's timezone). */
+  defaultDate?: string;
   expenseCategories: SelectableCategory[];
   incomeCategories: SelectableCategory[];
   savingsCategories: SelectableCategory[];
@@ -71,7 +69,7 @@ export function BulkAddDialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = setControlledOpen ?? setInternalOpen;
-  const [rows, setRows] = useState<DraftRow[]>([emptyRow()]);
+  const [rows, setRows] = useState<DraftRow[]>([emptyRow(defaultDate)]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -79,12 +77,12 @@ export function BulkAddDialog({
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   };
 
-  const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+  const addRow = () => setRows((prev) => [...prev, emptyRow(defaultDate)]);
   const removeRow = (key: string) =>
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.key !== key) : prev));
 
   const reset = () => {
-    setRows([emptyRow()]);
+    setRows([emptyRow(defaultDate)]);
     setError(null);
   };
 
