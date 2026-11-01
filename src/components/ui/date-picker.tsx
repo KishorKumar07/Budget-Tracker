@@ -49,7 +49,6 @@ export function DatePickerButton({
       <PopoverContent align="start" className="w-auto min-w-0 p-2">
         <Calendar
           selected={selectedDate}
-          month={selectedDate}
           onSelect={(date) => {
             onChange(toLocalISODate(date));
             setOpen(false);
