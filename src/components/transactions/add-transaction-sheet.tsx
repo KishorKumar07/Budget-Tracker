@@ -162,7 +162,7 @@ export function AddTransactionSheet({
             <div className="flex flex-col gap-4 rounded-lg border border-border p-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="paymentMethod">Payment method</Label>
-                <NativeSelect id="paymentMethod" name="paymentMethod" defaultValue="OTHER">
+                <NativeSelect id="paymentMethod" name="paymentMethod" defaultValue="UPI">
                   {PAYMENT_METHODS.map((method) => (
                     <option key={method} value={method}>
                       {PAYMENT_LABELS[method]}

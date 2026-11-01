@@ -37,7 +37,7 @@ function emptyRow(date: string): DraftRow {
     categoryId: "",
     description: "",
     date,
-    paymentMethod: "OTHER",
+    paymentMethod: "UPI",
   };
 }
 

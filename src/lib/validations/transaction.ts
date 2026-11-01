@@ -9,7 +9,7 @@ export const createTransactionSchema = z.object({
   categoryId: z.string().min(1, "Select a category."),
   description: z.string().trim().max(200).optional(),
   date: z.coerce.date(),
-  paymentMethod: z.enum(PAYMENT_METHODS).default("OTHER"),
+  paymentMethod: z.enum(PAYMENT_METHODS).default("UPI"),
   notes: z.string().trim().max(1000).optional(),
 });
 
@@ -34,7 +34,7 @@ const bulkRowSchema = z.object({
   categoryId: z.string().min(1, "Select a category."),
   description: z.string().trim().max(200).optional(),
   date: z.coerce.date(),
-  paymentMethod: z.enum(PAYMENT_METHODS).default("OTHER"),
+  paymentMethod: z.enum(PAYMENT_METHODS).default("UPI"),
 });
 
 export const createTransactionsBulkSchema = z.object({

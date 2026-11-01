@@ -33,7 +33,7 @@ export async function createTransactionAction(
     categoryId: formData.get("categoryId"),
     description: formData.get("description") || undefined,
     date: formData.get("date"),
-    paymentMethod: formData.get("paymentMethod") || "OTHER",
+    paymentMethod: formData.get("paymentMethod") || "UPI",
     notes: formData.get("notes") || undefined,
   });
 
